@@ -191,7 +191,7 @@ export function CompareTab() {
         <Card>
           <CardHeader>
             <CardTitle>Head-to-head</CardTitle>
-            <p className="mt-0.5 text-xs text-faint">per-game averages · edge highlighted</p>
+            <p className="mt-0.5 text-xs text-faint">per-game averages · better mark highlighted</p>
           </CardHeader>
           <CardBody>
             <table className="w-full text-sm">
