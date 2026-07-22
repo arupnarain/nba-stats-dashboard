@@ -1,5 +1,6 @@
 "use client";
 
+import { useMemo } from "react";
 import {
   Area,
   AreaChart,
@@ -15,28 +16,40 @@ import {
 import { Avatar, initials } from "@/components/ui/Avatar";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCountUp } from "@/hooks/useCountUp";
-import { usePlayerGameLog } from "@/hooks/useNbaData";
+import { usePlayerGameLog, usePlayers } from "@/hooks/useNbaData";
 import {
   effectiveFgPct,
   shotDiet as computeShotDiet,
   trueShootingPct,
 } from "@/lib/analytics";
+import { mostSimilar, percentileFn, playerTS, qualified } from "@/lib/playerAnalytics";
 import type { GameLogEntry, Player } from "@/lib/types";
-import { fmtAvg, fmtPct, fmtShortDate } from "@/lib/utils";
+import { fmtAvg, fmtPct, fmtShortDate, ordinal } from "@/lib/utils";
 
 const RECENT_GAMES = 12;
 
-function CountStat({ label, value }: { label: string; value: number }) {
+function CountStat({ label, value, pct }: { label: string; value: number; pct?: number }) {
   const animated = useCountUp(value);
   return (
     <div className="flex flex-col items-center rounded-lg bg-surface-2 py-2.5">
       <span className="text-lg font-bold tabular-nums text-text">{animated.toFixed(1)}</span>
       <span className="text-[10px] uppercase tracking-wide text-faint">{label}</span>
+      {pct !== undefined ? (
+        <span className="mt-0.5 text-[9px] text-accent">{ordinal(pct)} pct</span>
+      ) : null}
     </div>
   );
 }
 
-function EfficiencyChip({ label, value, hint }: { label: string; value: number; hint: string }) {
+function EfficiencyChip({
+  label,
+  value,
+  hint,
+}: {
+  label: string;
+  value: number;
+  hint: string;
+}) {
   return (
     <div className="flex-1 rounded-lg border border-line bg-surface-2 px-3 py-2">
       <div className="flex items-baseline justify-between">
@@ -99,7 +112,6 @@ function FormTooltip({
 
 function RecentForm({ playerId }: { playerId: string }) {
   const { data: games, isLoading, isError } = usePlayerGameLog(playerId, true);
-
   const recent = (games ?? []).slice(-RECENT_GAMES);
   const avg =
     recent.length > 0 ? recent.reduce((sum, g) => sum + g.points, 0) / recent.length : 0;
@@ -152,8 +164,54 @@ function RecentForm({ playerId }: { playerId: string }) {
   );
 }
 
+function SimilarPlayers({ player, pool }: { player: Player; pool: Player[] }) {
+  const similar = useMemo(() => mostSimilar(player, pool, 5), [player, pool]);
+  if (similar.length === 0) return null;
+  return (
+    <div>
+      <p className="mb-2 text-xs font-medium text-muted">
+        Most similar players <span className="text-faint">· by statistical profile</span>
+      </p>
+      <ul className="space-y-1.5">
+        {similar.map(({ player: p, match }) => (
+          <li key={p.id} className="flex items-center gap-3 rounded-lg bg-surface-2 px-3 py-2">
+            <Avatar
+              src={p.headshot}
+              alt={p.name}
+              fallback={initials(p.name)}
+              size={30}
+              rounded={false}
+            />
+            <div className="min-w-0 flex-1">
+              <p className="truncate text-sm font-medium text-text">{p.name}</p>
+              <p className="truncate text-[11px] text-faint">
+                {p.teamAbbr} · {p.position} · {fmtAvg(p.stats.points)} / {fmtAvg(p.stats.rebounds)}{" "}
+                / {fmtAvg(p.stats.assists)}
+              </p>
+            </div>
+            <span className="text-xs font-semibold tabular-nums text-accent">{match}%</span>
+          </li>
+        ))}
+      </ul>
+    </div>
+  );
+}
+
 export function PlayerDetailModal({ player }: { player: Player }) {
   const { stats } = player;
+  const { data: allPlayers } = usePlayers();
+
+  const pool = useMemo(() => qualified(allPlayers ?? []), [allPlayers]);
+  const pct = useMemo(() => {
+    if (pool.length === 0) return null;
+    return {
+      points: percentileFn(pool, (p) => p.stats.points)(stats.points),
+      rebounds: percentileFn(pool, (p) => p.stats.rebounds)(stats.rebounds),
+      assists: percentileFn(pool, (p) => p.stats.assists)(stats.assists),
+      ts: percentileFn(pool, playerTS)(playerTS(player)),
+    };
+  }, [pool, player, stats]);
+
   const ts = trueShootingPct(stats.points, stats.fgAtt, stats.ftAtt);
   const efg = effectiveFgPct(stats.fgMade, stats.threeMade, stats.fgAtt);
   const diet = computeShotDiet(stats.fgMade, stats.threeMade, stats.ftMade);
@@ -198,16 +256,19 @@ export function PlayerDetailModal({ player }: { player: Player }) {
 
       <div className="space-y-5 p-5 pt-2">
         <div className="grid grid-cols-4 gap-2">
-          <CountStat label="PTS" value={stats.points} />
-          <CountStat label="REB" value={stats.rebounds} />
-          <CountStat label="AST" value={stats.assists} />
+          <CountStat label="PTS" value={stats.points} pct={pct?.points} />
+          <CountStat label="REB" value={stats.rebounds} pct={pct?.rebounds} />
+          <CountStat label="AST" value={stats.assists} pct={pct?.assists} />
           <CountStat label="MIN" value={stats.minutes} />
         </div>
 
-        {/* Efficiency — the advanced layer */}
         <div className="space-y-3">
           <div className="flex gap-2">
-            <EfficiencyChip label="True Shooting" value={ts} hint="scoring efficiency, all shots" />
+            <EfficiencyChip
+              label="True Shooting"
+              value={ts}
+              hint={pct ? `${ordinal(pct.ts)} pct in league` : "scoring efficiency"}
+            />
             <EfficiencyChip label="Effective FG" value={efg} hint="FG% weighting 3s" />
           </div>
           <div>
@@ -251,6 +312,8 @@ export function PlayerDetailModal({ player }: { player: Player }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
+
+        {pool.length > 0 ? <SimilarPlayers player={player} pool={pool} /> : null}
       </div>
     </div>
   );

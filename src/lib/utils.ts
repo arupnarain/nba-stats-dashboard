@@ -16,6 +16,23 @@ export function fmtPct(value: number): string {
   return `${value.toFixed(1)}%`;
 }
 
+/** 1 -> "1st", 22 -> "22nd", 94 -> "94th". */
+export function ordinal(n: number): string {
+  const r = Math.round(n);
+  const mod100 = r % 100;
+  if (mod100 >= 11 && mod100 <= 13) return `${r}th`;
+  switch (r % 10) {
+    case 1:
+      return `${r}st`;
+    case 2:
+      return `${r}nd`;
+    case 3:
+      return `${r}rd`;
+    default:
+      return `${r}th`;
+  }
+}
+
 const MONTHS = [
   "Jan", "Feb", "Mar", "Apr", "May", "Jun",
   "Jul", "Aug", "Sep", "Oct", "Nov", "Dec",

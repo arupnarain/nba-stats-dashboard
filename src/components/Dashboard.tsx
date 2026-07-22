@@ -6,6 +6,8 @@ import {
   BarChart3,
   CircleDot,
   Newspaper,
+  Scale,
+  ScatterChart,
   Trophy,
   Users,
   Shield,
@@ -14,6 +16,8 @@ import type { ComponentType } from "react";
 import { PlayersTab } from "./features/PlayersTab";
 import { TeamsTab } from "./features/TeamsTab";
 import { LeadersTab } from "./features/LeadersTab";
+import { ExploreTab } from "./features/ExploreTab";
+import { CompareTab } from "./features/CompareTab";
 import { InjuriesTab } from "./features/InjuriesTab";
 import { NewsTab } from "./features/NewsTab";
 import { DraftTab } from "./features/DraftTab";
@@ -29,6 +33,8 @@ const TABS: TabDef[] = [
   { value: "players", label: "Players", icon: Users, Panel: PlayersTab },
   { value: "teams", label: "Teams", icon: Shield, Panel: TeamsTab },
   { value: "leaders", label: "Leaders", icon: BarChart3, Panel: LeadersTab },
+  { value: "explore", label: "Explore", icon: ScatterChart, Panel: ExploreTab },
+  { value: "compare", label: "Compare", icon: Scale, Panel: CompareTab },
   { value: "injuries", label: "Injuries", icon: Activity, Panel: InjuriesTab },
   { value: "news", label: "News", icon: Newspaper, Panel: NewsTab },
   { value: "draft", label: "Draft", icon: Trophy, Panel: DraftTab },
