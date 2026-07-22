@@ -146,10 +146,39 @@ body {
   animation: contentIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
 }
 
+/* Collapsible injury panels. */
+@keyframes accordionDown {
+  from {
+    height: 0;
+  }
+  to {
+    height: var(--radix-accordion-content-height);
+  }
+}
+@keyframes accordionUp {
+  from {
+    height: var(--radix-accordion-content-height);
+  }
+  to {
+    height: 0;
+  }
+}
+.acc-content {
+  overflow: hidden;
+}
+.acc-content[data-state="open"] {
+  animation: accordionDown 0.2s ease-out;
+}
+.acc-content[data-state="closed"] {
+  animation: accordionUp 0.2s ease-out;
+}
+
 @media (prefers-reduced-motion: reduce) {
   .tab-fade,
   .dialog-overlay,
   .dialog-content,
+  .acc-content[data-state="open"],
+  .acc-content[data-state="closed"],
   .skeleton::after {
     animation: none;
   }
