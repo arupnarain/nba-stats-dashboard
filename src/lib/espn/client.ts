@@ -68,12 +68,12 @@ export async function espnFetch(
  */
 export async function espnFetchAllAthletes(
   revalidate: number = DEFAULT_REVALIDATE,
-): Promise<unknown[]> {
+): Promise<{ athletes: unknown[]; glossary: unknown }> {
   const PAGE_SIZE = 50;
   const first = (await espnFetch(
     endpoints.byAthlete(1, PAGE_SIZE),
     revalidate,
-  )) as { pagination?: { pages?: number }; athletes?: unknown[] };
+  )) as { pagination?: { pages?: number }; athletes?: unknown[]; categories?: unknown };
 
   const pages = Math.min(first.pagination?.pages ?? 1, 20);
   const all: unknown[] = [...(first.athletes ?? [])];
@@ -88,5 +88,5 @@ export async function espnFetchAllAthletes(
     );
     for (const page of rest) all.push(...(page.athletes ?? []));
   }
-  return all;
+  return { athletes: all, glossary: first.categories ?? [] };
 }

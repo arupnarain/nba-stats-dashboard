@@ -6,8 +6,8 @@ export const revalidate = 1800;
 
 export async function GET() {
   try {
-    const raw = await espnFetchAllAthletes();
-    const players = mapPlayers(raw);
+    const { athletes, glossary } = await espnFetchAllAthletes();
+    const players = mapPlayers(athletes, glossary);
     return Response.json(
       { players, count: players.length },
       { headers: { "Cache-Control": "public, s-maxage=1800, stale-while-revalidate=3600" } },

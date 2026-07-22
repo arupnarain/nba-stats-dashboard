@@ -44,11 +44,21 @@ interface RawAthleteEntry {
   categories?: RawStatCategory[];
 }
 
-/** Flatten ESPN's parallel names[]/values[] arrays into one lookup. */
-function statLookup(categories: RawStatCategory[] | undefined): Map<string, number> {
+function buildGlossary(rawGlossary: unknown): Map<string, string[]> {
+  const map = new Map<string, string[]>();
+  for (const cat of (rawGlossary as RawStatCategory[]) ?? []) {
+    if (cat.name && cat.names) map.set(cat.name, cat.names);
+  }
+  return map;
+}
+
+function statLookup(
+  categories: RawStatCategory[] | undefined,
+  glossary: Map<string, string[]>,
+): Map<string, number> {
   const map = new Map<string, number>();
   for (const cat of categories ?? []) {
-    const names = cat.names ?? [];
+    const names = glossary.get(cat.name ?? "") ?? cat.names ?? [];
     const values = cat.values ?? [];
     for (let i = 0; i < names.length; i += 1) {
       if (!map.has(names[i])) map.set(names[i], num(values[i]));
@@ -63,12 +73,13 @@ function pickLogo(logos: { href?: string; rel?: string[] }[] | undefined): strin
   return def?.href ?? logos[0]?.href ?? null;
 }
 
-export function mapPlayers(rawAthletes: unknown[]): Player[] {
+export function mapPlayers(rawAthletes: unknown[], rawGlossary: unknown): Player[] {
+  const glossary = buildGlossary(rawGlossary);
   const players: Player[] = [];
   for (const raw of rawAthletes as RawAthleteEntry[]) {
     const a = raw.athlete;
     if (!a?.id || !a.displayName) continue;
-    const s = statLookup(raw.categories);
+    const s = statLookup(raw.categories, glossary);
     const stats: PlayerStats = {
       gamesPlayed: s.get("gamesPlayed") ?? 0,
       minutes: s.get("avgMinutes") ?? 0,
