@@ -22,6 +22,7 @@ export const endpoints = {
     `${WEB}/statistics/byathlete?page=${page}&limit=${limit}`,
   byTeam: () => `${WEB}/statistics/byteam?limit=40`,
   gameLog: (athleteId: string) => `${WEB}/athletes/${athleteId}/gamelog`,
+  athleteStats: (athleteId: string) => `${WEB}/athletes/${athleteId}/stats`,
 } as const;
 
 export class EspnError extends Error {

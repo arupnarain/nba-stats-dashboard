@@ -57,6 +57,40 @@ export interface TeamStats {
   fieldGoalPct: number;
   threePointPct: number;
   assistToTurnover: number;
+  // Per-game team volume — used to compute a player's usage rate.
+  teamFga: number;
+  teamFta: number;
+  teamTov: number;
+}
+
+/** A player's full per-game averages for one season (from the detail endpoint). */
+export interface PlayerSeason {
+  seasonYear: number;
+  seasonLabel: string;
+  gp: number;
+  gs: number;
+  min: number;
+  fgm: number;
+  fga: number;
+  fgPct: number;
+  tpm: number;
+  tpa: number;
+  tpPct: number;
+  ftm: number;
+  fta: number;
+  ftPct: number;
+  orb: number;
+  drb: number;
+  reb: number;
+  ast: number;
+  stl: number;
+  blk: number;
+  tov: number;
+  pf: number;
+  pts: number;
+  astTo: number;
+  dd2: number;
+  td3: number;
 }
 
 export interface Player {

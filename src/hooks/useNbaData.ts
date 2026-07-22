@@ -34,6 +34,16 @@ export function usePlayerGameLog(id: string, enabled: boolean) {
   });
 }
 
+/** Full season history — lazy-loaded when a player's modal opens. */
+export function usePlayerSeasons(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["seasons", id],
+    queryFn: () => api.playerSeasons(id),
+    enabled,
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
 export function useTeamStats() {
   return useQuery({ queryKey: ["team-stats"], queryFn: api.teamStats });
 }

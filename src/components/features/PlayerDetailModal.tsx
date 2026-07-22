@@ -16,14 +16,21 @@ import {
 import { Avatar, initials } from "@/components/ui/Avatar";
 import { Skeleton } from "@/components/ui/Skeleton";
 import { useCountUp } from "@/hooks/useCountUp";
-import { usePlayerGameLog, usePlayers } from "@/hooks/useNbaData";
+import {
+  usePlayerGameLog,
+  usePlayers,
+  usePlayerSeasons,
+  useTeamStats,
+} from "@/hooks/useNbaData";
 import {
   effectiveFgPct,
+  gameScore,
   shotDiet as computeShotDiet,
   trueShootingPct,
+  usageRate,
 } from "@/lib/analytics";
 import { mostSimilar, percentileFn, playerTS, qualified } from "@/lib/playerAnalytics";
-import type { GameLogEntry, Player } from "@/lib/types";
+import type { GameLogEntry, Player, PlayerSeason } from "@/lib/types";
 import { fmtAvg, fmtPct, fmtShortDate, ordinal } from "@/lib/utils";
 
 const RECENT_GAMES = 12;
@@ -41,20 +48,12 @@ function CountStat({ label, value, pct }: { label: string; value: number; pct?: 
   );
 }
 
-function EfficiencyChip({
-  label,
-  value,
-  hint,
-}: {
-  label: string;
-  value: number;
-  hint: string;
-}) {
+function AdvChip({ label, value, hint }: { label: string; value: string; hint: string }) {
   return (
     <div className="flex-1 rounded-lg border border-line bg-surface-2 px-3 py-2">
-      <div className="flex items-baseline justify-between">
+      <div className="flex items-baseline justify-between gap-1">
         <span className="text-xs font-medium text-muted">{label}</span>
-        <span className="text-base font-bold tabular-nums text-accent">{fmtPct(value)}</span>
+        <span className="text-base font-bold tabular-nums text-accent">{value}</span>
       </div>
       <p className="mt-0.5 text-[10px] text-faint">{hint}</p>
     </div>
@@ -82,6 +81,90 @@ function ShotDietBar({ diet }: { diet: { two: number; three: number; ft: number 
             {seg.label} {Math.round(diet[seg.key])}%
           </span>
         ))}
+      </div>
+    </div>
+  );
+}
+
+/** Current-season shooting splits: FG / 2P / 3P / FT as made-attempt (pct). */
+function ShootingSplits({ s }: { s: PlayerSeason }) {
+  const rows = [
+    { label: "Field goals", m: s.fgm, a: s.fga, pct: s.fgPct },
+    { label: "2-pointers", m: s.fgm - s.tpm, a: s.fga - s.tpa, pct: (s.fga - s.tpa) > 0 ? ((s.fgm - s.tpm) / (s.fga - s.tpa)) * 100 : 0 },
+    { label: "3-pointers", m: s.tpm, a: s.tpa, pct: s.tpPct },
+    { label: "Free throws", m: s.ftm, a: s.fta, pct: s.ftPct },
+  ];
+  return (
+    <div>
+      <p className="mb-1.5 text-xs font-medium text-muted">Shooting splits · per game</p>
+      <div className="overflow-hidden rounded-lg border border-line">
+        {rows.map((r, i) => (
+          <div
+            key={r.label}
+            className={`flex items-center justify-between px-3 py-1.5 text-xs ${i % 2 ? "bg-surface-2/40" : ""}`}
+          >
+            <span className="text-muted">{r.label}</span>
+            <span className="tabular-nums text-text">
+              {fmtAvg(r.m)}–{fmtAvg(r.a)}{" "}
+              <span className="text-faint">({r.pct.toFixed(1)}%)</span>
+            </span>
+          </div>
+        ))}
+      </div>
+      <div className="mt-2 grid grid-cols-3 gap-2 text-center">
+        <div className="rounded-md bg-surface-2 py-1.5">
+          <p className="text-sm font-semibold tabular-nums text-text">{fmtAvg(s.orb)}</p>
+          <p className="text-[9px] uppercase tracking-wide text-faint">Off reb</p>
+        </div>
+        <div className="rounded-md bg-surface-2 py-1.5">
+          <p className="text-sm font-semibold tabular-nums text-text">{fmtAvg(s.drb)}</p>
+          <p className="text-[9px] uppercase tracking-wide text-faint">Def reb</p>
+        </div>
+        <div className="rounded-md bg-surface-2 py-1.5">
+          <p className="text-sm font-semibold tabular-nums text-text">{s.gs}</p>
+          <p className="text-[9px] uppercase tracking-wide text-faint">Games started</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function SeasonHistory({ seasons }: { seasons: PlayerSeason[] }) {
+  const rows = [...seasons].reverse();
+  return (
+    <div>
+      <p className="mb-1.5 text-xs font-medium text-muted">Season history · per game</p>
+      <div className="overflow-x-auto rounded-lg border border-line">
+        <table className="w-full min-w-[520px] text-xs">
+          <thead>
+            <tr className="bg-surface-2 text-faint">
+              {["Season", "GP", "MIN", "PTS", "REB", "AST", "STL", "BLK", "FG%", "3P%", "FT%"].map(
+                (h) => (
+                  <th key={h} className="px-2 py-1.5 text-right font-medium first:text-left">
+                    {h}
+                  </th>
+                ),
+              )}
+            </tr>
+          </thead>
+          <tbody>
+            {rows.map((s) => (
+              <tr key={s.seasonYear} className="border-t border-line tabular-nums">
+                <td className="px-2 py-1.5 text-left text-muted">{s.seasonLabel}</td>
+                <td className="px-2 py-1.5 text-right text-muted">{s.gp}</td>
+                <td className="px-2 py-1.5 text-right text-muted">{fmtAvg(s.min)}</td>
+                <td className="px-2 py-1.5 text-right font-medium text-text">{fmtAvg(s.pts)}</td>
+                <td className="px-2 py-1.5 text-right text-muted">{fmtAvg(s.reb)}</td>
+                <td className="px-2 py-1.5 text-right text-muted">{fmtAvg(s.ast)}</td>
+                <td className="px-2 py-1.5 text-right text-muted">{fmtAvg(s.stl)}</td>
+                <td className="px-2 py-1.5 text-right text-muted">{fmtAvg(s.blk)}</td>
+                <td className="px-2 py-1.5 text-right text-muted">{s.fgPct.toFixed(1)}</td>
+                <td className="px-2 py-1.5 text-right text-muted">{s.tpPct.toFixed(1)}</td>
+                <td className="px-2 py-1.5 text-right text-muted">{s.ftPct.toFixed(1)}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
       </div>
     </div>
   );
@@ -200,6 +283,8 @@ function SimilarPlayers({ player, pool }: { player: Player; pool: Player[] }) {
 export function PlayerDetailModal({ player }: { player: Player }) {
   const { stats } = player;
   const { data: allPlayers } = usePlayers();
+  const { data: seasons } = usePlayerSeasons(player.id, true);
+  const { data: teamStats } = useTeamStats();
 
   const pool = useMemo(() => qualified(allPlayers ?? []), [allPlayers]);
   const pct = useMemo(() => {
@@ -212,9 +297,39 @@ export function PlayerDetailModal({ player }: { player: Player }) {
     };
   }, [pool, player, stats]);
 
+  // Latest season (highest year) carries the OR/DR split + games started.
+  const current = useMemo(() => {
+    if (!seasons?.length) return null;
+    return seasons.reduce((a, b) => (b.seasonYear > a.seasonYear ? b : a));
+  }, [seasons]);
+
+  const team = teamStats?.find((t) => t.teamId === player.teamId) ?? null;
+
   const ts = trueShootingPct(stats.points, stats.fgAtt, stats.ftAtt);
   const efg = effectiveFgPct(stats.fgMade, stats.threeMade, stats.fgAtt);
   const diet = computeShotDiet(stats.fgMade, stats.threeMade, stats.ftMade);
+
+  const usg =
+    current && team
+      ? usageRate(current.fga, current.fta, current.tov, current.min, team.teamFga, team.teamFta, team.teamTov)
+      : null;
+  const gmsc = current
+    ? gameScore({
+        pts: current.pts,
+        fgm: current.fgm,
+        fga: current.fga,
+        fta: current.fta,
+        ftm: current.ftm,
+        orb: current.orb,
+        drb: current.drb,
+        stl: current.stl,
+        ast: current.ast,
+        blk: current.blk,
+        pf: current.pf,
+        tov: current.tov,
+      })
+    : null;
+
   const production = [
     { label: "PTS", value: stats.points },
     { label: "REB", value: stats.rebounds },
@@ -262,22 +377,34 @@ export function PlayerDetailModal({ player }: { player: Player }) {
           <CountStat label="MIN" value={stats.minutes} />
         </div>
 
-        <div className="space-y-3">
-          <div className="flex gap-2">
-            <EfficiencyChip
-              label="True Shooting"
-              value={ts}
-              hint={pct ? `${ordinal(pct.ts)} pct in league` : "scoring efficiency"}
-            />
-            <EfficiencyChip label="Effective FG" value={efg} hint="FG% weighting 3s" />
-          </div>
-          <div>
-            <p className="mb-1.5 text-xs font-medium text-muted">Scoring breakdown</p>
-            <ShotDietBar diet={diet} />
-          </div>
+        {/* Advanced metrics */}
+        <div className="grid grid-cols-2 gap-2 sm:grid-cols-4">
+          <AdvChip
+            label="TS%"
+            value={fmtPct(ts)}
+            hint={pct ? `${ordinal(pct.ts)} pct` : "true shooting"}
+          />
+          <AdvChip label="eFG%" value={fmtPct(efg)} hint="weights 3s" />
+          <AdvChip label="Usage" value={usg !== null ? fmtPct(usg) : "…"} hint="possessions used" />
+          <AdvChip
+            label="Game Score"
+            value={gmsc !== null ? gmsc.toFixed(1) : "…"}
+            hint="Hollinger, per game"
+          />
+        </div>
+
+        <div>
+          <p className="mb-1.5 text-xs font-medium text-muted">Scoring breakdown</p>
+          <ShotDietBar diet={diet} />
         </div>
 
         <RecentForm playerId={player.id} />
+
+        {current ? (
+          <ShootingSplits s={current} />
+        ) : (
+          <Skeleton className="h-[168px] w-full" />
+        )}
 
         <div>
           <p className="mb-1 text-xs font-medium text-muted">Per-game production</p>
@@ -312,6 +439,8 @@ export function PlayerDetailModal({ player }: { player: Player }) {
             </BarChart>
           </ResponsiveContainer>
         </div>
+
+        {seasons && seasons.length > 1 ? <SeasonHistory seasons={seasons} /> : null}
 
         {pool.length > 0 ? <SimilarPlayers player={player} pool={pool} /> : null}
       </div>

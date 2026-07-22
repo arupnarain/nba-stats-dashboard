@@ -13,6 +13,7 @@ import type {
   NewsArticle,
   Player,
   PlayerInjury,
+  PlayerSeason,
   PlayerStats,
   Team,
   TeamInjuryReport,
@@ -414,7 +415,93 @@ export function mapTeamStats(raw: unknown): TeamStats[] {
       fieldGoalPct: lut.get("fieldGoalPct") ?? 0,
       threePointPct: lut.get("threePointFieldGoalPct") ?? 0,
       assistToTurnover: lut.get("assistTurnoverRatio") ?? 0,
+      teamFga: lut.get("avgFieldGoalsAttempted") ?? 0,
+      teamFta: lut.get("avgFreeThrowsAttempted") ?? 0,
+      teamTov: lut.get("avgTurnovers") ?? 0,
     });
   }
   return out;
+}
+
+/* --------------------------- Player seasons ----------------------------- */
+
+interface RawAthleteStats {
+  categories?: {
+    name?: string;
+    labels?: string[];
+    statistics?: {
+      season?: { year?: number; displayName?: string };
+      stats?: string[];
+    }[];
+  }[];
+}
+
+/** Parse a "made-attempted" cell like "10.8-22.8". */
+function parseMadeAtt(cell: unknown): { made: number; att: number } {
+  const [m, a] = String(cell ?? "").split("-");
+  return { made: numFrom(m), att: numFrom(a) };
+}
+
+/**
+ * Parse the per-athlete stats endpoint into one row per season (per-game
+ * averages, including the OR/DR split and games started that the bulk feed
+ * lacks). When a season has multiple rows (a mid-season trade), the row with
+ * the most games — the combined total — wins.
+ */
+export function mapPlayerSeasons(raw: unknown): PlayerSeason[] {
+  const data = raw as RawAthleteStats;
+  const avg = data.categories?.find((c) => c.name === "averages");
+  const misc = data.categories?.find((c) => c.name === "miscellaneous");
+  const L = avg?.labels ?? [];
+  const at = (label: string) => L.indexOf(label);
+  const ML = misc?.labels ?? [];
+  const miscByYear = new Map<number, string[]>();
+  for (const st of misc?.statistics ?? []) {
+    const y = st.season?.year;
+    if (typeof y === "number") miscByYear.set(y, st.stats ?? []);
+  }
+
+  const byYear = new Map<number, PlayerSeason>();
+  for (const st of avg?.statistics ?? []) {
+    const s = st.stats ?? [];
+    const year = st.season?.year ?? 0;
+    if (!year) continue;
+    const fg = parseMadeAtt(s[at("FG")]);
+    const tp = parseMadeAtt(s[at("3PT")]);
+    const ft = parseMadeAtt(s[at("FT")]);
+    const m = miscByYear.get(year) ?? [];
+    const gp = numFrom(s[at("GP")]);
+    const season: PlayerSeason = {
+      seasonYear: year,
+      seasonLabel: str(st.season?.displayName),
+      gp,
+      gs: numFrom(s[at("GS")]),
+      min: numFrom(s[at("MIN")]),
+      fgm: fg.made,
+      fga: fg.att,
+      fgPct: numFrom(s[at("FG%")]),
+      tpm: tp.made,
+      tpa: tp.att,
+      tpPct: numFrom(s[at("3P%")]),
+      ftm: ft.made,
+      fta: ft.att,
+      ftPct: numFrom(s[at("FT%")]),
+      orb: numFrom(s[at("OR")]),
+      drb: numFrom(s[at("DR")]),
+      reb: numFrom(s[at("REB")]),
+      ast: numFrom(s[at("AST")]),
+      stl: numFrom(s[at("STL")]),
+      blk: numFrom(s[at("BLK")]),
+      tov: numFrom(s[at("TO")]),
+      pf: numFrom(s[at("PF")]),
+      pts: numFrom(s[at("PTS")]),
+      astTo: ML.includes("AST/TO") ? numFrom(m[ML.indexOf("AST/TO")]) : 0,
+      dd2: ML.includes("DD2") ? numFrom(m[ML.indexOf("DD2")]) : 0,
+      td3: ML.includes("TD3") ? numFrom(m[ML.indexOf("TD3")]) : 0,
+    };
+    const existing = byYear.get(year);
+    if (!existing || gp > existing.gp) byYear.set(year, season);
+  }
+
+  return [...byYear.values()].sort((a, b) => a.seasonYear - b.seasonYear);
 }

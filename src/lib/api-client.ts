@@ -9,6 +9,7 @@ import type {
   NewsArticle,
   NewsLeague,
   Player,
+  PlayerSeason,
   Team,
   TeamInjuryReport,
   TeamStats,
@@ -30,5 +31,7 @@ export const api = {
   draft: () => getJson<{ picks: DraftPick[] }>("/api/draft").then((d) => d.picks),
   gameLog: (id: string) =>
     getJson<{ games: GameLogEntry[] }>(`/api/players/${id}/gamelog`).then((d) => d.games),
+  playerSeasons: (id: string) =>
+    getJson<{ seasons: PlayerSeason[] }>(`/api/players/${id}/stats`).then((d) => d.seasons),
   teamStats: () => getJson<{ stats: TeamStats[] }>("/api/team-stats").then((d) => d.stats),
 };

@@ -56,3 +56,56 @@ export function possessions(fga: number, fta: number, oreb: number, tov: number)
 export function ratingPer100(pointsPerGame: number, pace: number): number {
   return pace > 0 ? (pointsPerGame / pace) * 100 : 0;
 }
+
+/**
+ * Usage Rate — the share of his team's possessions a player uses (shoots,
+ * gets fouled, or turns over) while on the floor. Team minutes are ~240/game
+ * (5 players × 48), so TmMP/5 ≈ 48. All inputs are per-game.
+ */
+export function usageRate(
+  fga: number,
+  fta: number,
+  tov: number,
+  minutes: number,
+  teamFga: number,
+  teamFta: number,
+  teamTov: number,
+): number {
+  const teamPlays = teamFga + 0.44 * teamFta + teamTov;
+  const denom = minutes * teamPlays;
+  if (denom <= 0) return 0;
+  return (100 * (fga + 0.44 * fta + tov) * 48) / denom;
+}
+
+/**
+ * Game Score (John Hollinger) — a single-number estimate of a player's per-game
+ * productivity, scaled like points (≈10 is average, 40+ is a huge night).
+ */
+export function gameScore(box: {
+  pts: number;
+  fgm: number;
+  fga: number;
+  fta: number;
+  ftm: number;
+  orb: number;
+  drb: number;
+  stl: number;
+  ast: number;
+  blk: number;
+  pf: number;
+  tov: number;
+}): number {
+  return (
+    box.pts +
+    0.4 * box.fgm -
+    0.7 * box.fga -
+    0.4 * (box.fta - box.ftm) +
+    0.7 * box.orb +
+    0.3 * box.drb +
+    box.stl +
+    0.7 * box.ast +
+    0.7 * box.blk -
+    0.4 * box.pf -
+    box.tov
+  );
+}
