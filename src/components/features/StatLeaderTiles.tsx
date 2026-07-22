@@ -1,5 +1,6 @@
 "use client";
 
+import { Crown } from "lucide-react";
 import { useMemo } from "react";
 import { Avatar, initials } from "@/components/ui/Avatar";
 import { Card } from "@/components/ui/Card";
@@ -36,11 +37,14 @@ function LeaderTile({
         className="bg-surface-2"
       />
       <div className="min-w-0 flex-1">
-        <p className="text-[10px] uppercase tracking-wide text-faint">{label} leader</p>
+        <p className="flex items-center gap-1 text-[10px] uppercase tracking-wide text-faint">
+          <Crown className="h-3 w-3 text-gold" />
+          {label} leader
+        </p>
         <p className="truncate text-sm font-semibold text-text">{player.name}</p>
         <p className="truncate text-xs text-muted">{player.teamAbbr}</p>
       </div>
-      <span className="text-xl font-bold tabular-nums text-accent">
+      <span className="text-xl font-bold tabular-nums text-gold">
         {animated.toFixed(1)}
       </span>
     </Card>

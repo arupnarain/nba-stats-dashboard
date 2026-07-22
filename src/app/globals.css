@@ -25,6 +25,7 @@
   --color-positive: #34d39a;
   --color-warn: #fbbf5c;
   --color-danger: #f27272;
+  --color-gold: #f4c740;
 
   --radius: 0.85rem;
 }
@@ -44,6 +45,7 @@
   --color-positive: var(--color-positive);
   --color-warn: var(--color-warn);
   --color-danger: var(--color-danger);
+  --color-gold: var(--color-gold);
 
   --font-sans: ui-sans-serif, system-ui, -apple-system, "Segoe UI", Roboto, Helvetica, Arial, sans-serif;
   --font-mono: ui-monospace, "SF Mono", Menlo, Consolas, monospace;
