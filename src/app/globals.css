@@ -104,3 +104,53 @@ body {
   animation: shimmer 1.4s infinite;
   content: "";
 }
+
+/* Tab content enters with a soft rise + fade. */
+@keyframes tabIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+.tab-fade {
+  animation: tabIn 0.25s ease both;
+}
+
+/* Modal overlay + content entrance. */
+@keyframes overlayIn {
+  from {
+    opacity: 0;
+  }
+  to {
+    opacity: 1;
+  }
+}
+@keyframes contentIn {
+  from {
+    opacity: 0;
+    transform: translate(-50%, -48%) scale(0.97);
+  }
+  to {
+    opacity: 1;
+    transform: translate(-50%, -50%) scale(1);
+  }
+}
+.dialog-overlay {
+  animation: overlayIn 0.18s ease-out;
+}
+.dialog-content {
+  animation: contentIn 0.2s cubic-bezier(0.16, 1, 0.3, 1);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .tab-fade,
+  .dialog-overlay,
+  .dialog-content,
+  .skeleton::after {
+    animation: none;
+  }
+}

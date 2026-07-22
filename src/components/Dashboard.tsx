@@ -68,7 +68,7 @@ export function Dashboard() {
         </Tabs.List>
 
         {TABS.map(({ value, Panel }) => (
-          <Tabs.Content key={value} value={value} className="outline-none">
+          <Tabs.Content key={value} value={value} className="tab-fade outline-none">
             <Panel />
           </Tabs.Content>
         ))}
