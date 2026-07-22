@@ -9,16 +9,24 @@
 
 import type {
   DraftPick,
+  GameLogEntry,
   NewsArticle,
   Player,
   PlayerInjury,
   PlayerStats,
   Team,
   TeamInjuryReport,
+  TeamStats,
 } from "@/lib/types";
+import { possessions, ratingPer100 } from "@/lib/analytics";
 
 const num = (v: unknown): number => (typeof v === "number" && !Number.isNaN(v) ? v : 0);
 const str = (v: unknown): string => (typeof v === "string" ? v : "");
+/** Parse a game-log stat cell (strings like "26" or "3-10") to a number. */
+const numFrom = (v: unknown): number => {
+  const n = Number(v);
+  return Number.isFinite(n) ? n : 0;
+};
 
 /* ------------------------------- Players -------------------------------- */
 
@@ -44,6 +52,7 @@ interface RawAthleteEntry {
   categories?: RawStatCategory[];
 }
 
+/** Map each category name -> its ordered stat keys, from the glossary. */
 function buildGlossary(rawGlossary: unknown): Map<string, string[]> {
   const map = new Map<string, string[]>();
   for (const cat of (rawGlossary as RawStatCategory[]) ?? []) {
@@ -52,6 +61,11 @@ function buildGlossary(rawGlossary: unknown): Map<string, string[]> {
   return map;
 }
 
+/**
+ * Line up a player's positional `values` with the glossary's stat names.
+ * ESPN keys stats by array position, not by name — the glossary tells us
+ * which slot is which (e.g. offensive[0] = avgPoints).
+ */
 function statLookup(
   categories: RawStatCategory[] | undefined,
   glossary: Map<string, string[]>,
@@ -92,6 +106,12 @@ export function mapPlayers(rawAthletes: unknown[], rawGlossary: unknown): Player
       fieldGoalPct: s.get("fieldGoalPct") ?? 0,
       threePointPct: s.get("threePointFieldGoalPct") ?? 0,
       freeThrowPct: s.get("freeThrowPct") ?? 0,
+      fgMade: s.get("avgFieldGoalsMade") ?? 0,
+      fgAtt: s.get("avgFieldGoalsAttempted") ?? 0,
+      threeMade: s.get("avgThreePointFieldGoalsMade") ?? 0,
+      threeAtt: s.get("avgThreePointFieldGoalsAttempted") ?? 0,
+      ftMade: s.get("avgFreeThrowsMade") ?? 0,
+      ftAtt: s.get("avgFreeThrowsAttempted") ?? 0,
     };
     players.push({
       id: a.id,
@@ -284,4 +304,117 @@ export function mapDraft(raw: unknown): DraftPick[] {
     });
   }
   return out.sort((a, b) => a.overall - b.overall);
+}
+
+/* ------------------------------ Game log -------------------------------- */
+
+interface RawGameLog {
+  names?: string[];
+  events?: Record<
+    string,
+    {
+      gameDate?: string;
+      homeAway?: string;
+      gameResult?: string;
+      opponent?: { abbreviation?: string };
+    }
+  >;
+  seasonTypes?: { categories?: { events?: { eventId?: string; stats?: string[] }[] }[] }[];
+}
+
+export function mapGameLog(raw: unknown): GameLogEntry[] {
+  const data = raw as RawGameLog;
+  const names = data.names ?? [];
+  const iPts = names.indexOf("points");
+  const iReb = names.indexOf("totalRebounds");
+  const iAst = names.indexOf("assists");
+  const iMin = names.indexOf("minutes");
+  const meta = data.events ?? {};
+  const rows: GameLogEntry[] = [];
+  const seen = new Set<string>();
+
+  for (const st of data.seasonTypes ?? []) {
+    for (const cat of st.categories ?? []) {
+      for (const ev of cat.events ?? []) {
+        const id = str(ev.eventId);
+        if (!id || seen.has(id)) continue;
+        seen.add(id);
+        const stats = ev.stats ?? [];
+        const m = meta[id];
+        const ha = m?.homeAway;
+        rows.push({
+          eventId: id,
+          date: str(m?.gameDate),
+          opponent: str(m?.opponent?.abbreviation),
+          homeAway: ha === "home" || ha === "away" ? ha : "",
+          result: str(m?.gameResult),
+          minutes: numFrom(stats[iMin]),
+          points: numFrom(stats[iPts]),
+          rebounds: numFrom(stats[iReb]),
+          assists: numFrom(stats[iAst]),
+        });
+      }
+    }
+  }
+  return rows.sort((a, b) => new Date(a.date).getTime() - new Date(b.date).getTime());
+}
+
+/* ----------------------------- Team stats ------------------------------- */
+
+interface RawByTeam {
+  categories?: { name?: string; names?: string[] }[];
+  teams?: {
+    team?: { id?: string };
+    categories?: { name?: string; values?: number[] }[];
+  }[];
+}
+
+export function mapTeamStats(raw: unknown): TeamStats[] {
+  const data = raw as RawByTeam;
+  const glossary = new Map<string, string[]>();
+  for (const c of data.categories ?? []) {
+    if (c.name && c.names?.length && !glossary.has(c.name)) glossary.set(c.name, c.names);
+  }
+
+  const out: TeamStats[] = [];
+  for (const t of data.teams ?? []) {
+    const id = str(t.team?.id);
+    if (!id) continue;
+    const lut = new Map<string, number>();
+    for (const c of t.categories ?? []) {
+      const names = glossary.get(c.name ?? "") ?? [];
+      const vals = c.values ?? [];
+      for (let i = 0; i < names.length; i += 1) {
+        if (!lut.has(names[i])) lut.set(names[i], num(vals[i]));
+      }
+    }
+
+    const ppg = lut.get("avgPoints") ?? 0;
+    const netDiff = lut.get("avgPointsDifferential") ?? 0;
+    const oppPpg = ppg - netDiff;
+    const pace = possessions(
+      lut.get("avgFieldGoalsAttempted") ?? 0,
+      lut.get("avgFreeThrowsAttempted") ?? 0,
+      lut.get("avgOffensiveRebounds") ?? 0,
+      lut.get("avgTurnovers") ?? 0,
+    );
+    const offRating = ratingPer100(ppg, pace);
+    const defRating = ratingPer100(oppPpg, pace);
+
+    out.push({
+      teamId: id,
+      gamesPlayed: lut.get("gamesPlayed") ?? 0,
+      pointsFor: ppg,
+      pointsAgainst: oppPpg,
+      netDiff,
+      pace,
+      offRating,
+      defRating,
+      netRating: offRating - defRating,
+      fieldGoalPct: lut.get("fieldGoalPct") ?? 0,
+      threePointPct: lut.get("threePointFieldGoalPct") ?? 0,
+      assistToTurnover: lut.get("assistTurnoverRatio") ?? 0,
+    });
+  }
+  return out;
 }

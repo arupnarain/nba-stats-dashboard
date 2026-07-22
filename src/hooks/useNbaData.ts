@@ -23,3 +23,17 @@ export function useNews(league: NewsLeague) {
 export function useDraft() {
   return useQuery({ queryKey: ["draft"], queryFn: api.draft });
 }
+
+/** Game log is fetched lazily — only when a player's modal is open. */
+export function usePlayerGameLog(id: string, enabled: boolean) {
+  return useQuery({
+    queryKey: ["gamelog", id],
+    queryFn: () => api.gameLog(id),
+    enabled,
+    staleTime: 60 * 60 * 1000,
+  });
+}
+
+export function useTeamStats() {
+  return useQuery({ queryKey: ["team-stats"], queryFn: api.teamStats });
+}

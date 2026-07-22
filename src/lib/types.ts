@@ -21,6 +21,42 @@ export interface PlayerStats {
   fieldGoalPct: number;
   threePointPct: number;
   freeThrowPct: number;
+  // Per-game shooting volume — needed to derive TS%, eFG%, and shot diet.
+  fgMade: number;
+  fgAtt: number;
+  threeMade: number;
+  threeAtt: number;
+  ftMade: number;
+  ftAtt: number;
+}
+
+/** A single game from a player's game log. */
+export interface GameLogEntry {
+  eventId: string;
+  date: string;
+  opponent: string;
+  homeAway: "home" | "away" | "";
+  result: string;
+  minutes: number;
+  points: number;
+  rebounds: number;
+  assists: number;
+}
+
+/** Team-level efficiency metrics, derived from season totals. */
+export interface TeamStats {
+  teamId: string;
+  gamesPlayed: number;
+  pointsFor: number;
+  pointsAgainst: number;
+  netDiff: number;
+  pace: number;
+  offRating: number;
+  defRating: number;
+  netRating: number;
+  fieldGoalPct: number;
+  threePointPct: number;
+  assistToTurnover: number;
 }
 
 export interface Player {

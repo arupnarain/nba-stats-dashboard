@@ -20,6 +20,8 @@ export const endpoints = {
   teams: () => `${SITE}/nba/teams`,
   byAthlete: (page: number, limit: number) =>
     `${WEB}/statistics/byathlete?page=${page}&limit=${limit}`,
+  byTeam: () => `${WEB}/statistics/byteam?limit=40`,
+  gameLog: (athleteId: string) => `${WEB}/athletes/${athleteId}/gamelog`,
 } as const;
 
 export class EspnError extends Error {
@@ -65,6 +67,10 @@ export async function espnFetch(
  * The per-athlete statistics endpoint is paginated (~578 players). Pull every
  * page server-side and hand the frontend one clean array, so the client can
  * search / sort / rank entirely in memory with zero extra round-trips.
+ *
+ * ESPN returns the stat *names* once, in a top-level `categories` glossary;
+ * each athlete only carries positional `values` arrays. We return that glossary
+ * alongside the athletes so the mapper can line names up with values.
  */
 export async function espnFetchAllAthletes(
   revalidate: number = DEFAULT_REVALIDATE,

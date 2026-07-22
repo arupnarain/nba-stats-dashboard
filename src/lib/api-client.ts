@@ -5,11 +5,13 @@
 
 import type {
   DraftPick,
+  GameLogEntry,
   NewsArticle,
   NewsLeague,
   Player,
   Team,
   TeamInjuryReport,
+  TeamStats,
 } from "@/lib/types";
 
 async function getJson<T>(url: string): Promise<T> {
@@ -26,4 +28,7 @@ export const api = {
   news: (league: NewsLeague) =>
     getJson<{ articles: NewsArticle[] }>(`/api/news?league=${league}`).then((d) => d.articles),
   draft: () => getJson<{ picks: DraftPick[] }>("/api/draft").then((d) => d.picks),
+  gameLog: (id: string) =>
+    getJson<{ games: GameLogEntry[] }>(`/api/players/${id}/gamelog`).then((d) => d.games),
+  teamStats: () => getJson<{ stats: TeamStats[] }>("/api/team-stats").then((d) => d.stats),
 };

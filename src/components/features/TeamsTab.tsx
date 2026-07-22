@@ -7,15 +7,68 @@ import { Badge } from "@/components/ui/Badge";
 import { Select } from "@/components/ui/Select";
 import { SkeletonCards } from "@/components/ui/Skeleton";
 import { EmptyState, ErrorState } from "@/components/ui/States";
-import { usePlayers, useTeams } from "@/hooks/useNbaData";
+import { usePlayers, useTeams, useTeamStats } from "@/hooks/useNbaData";
+import type { TeamStats } from "@/lib/types";
+import { cn, fmtAvg } from "@/lib/utils";
+
+function Rating({
+  label,
+  value,
+  hint,
+  tone,
+}: {
+  label: string;
+  value: string;
+  hint?: string;
+  tone?: "positive" | "danger" | "default";
+}) {
+  return (
+    <div className="rounded-lg bg-surface-2 px-3 py-2 text-center">
+      <p
+        className={cn(
+          "text-base font-bold tabular-nums",
+          tone === "positive" ? "text-positive" : tone === "danger" ? "text-danger" : "text-text",
+        )}
+      >
+        {value}
+      </p>
+      <p className="text-[10px] uppercase tracking-wide text-faint">{label}</p>
+      {hint ? <p className="mt-0.5 text-[9px] text-faint">{hint}</p> : null}
+    </div>
+  );
+}
+
+function TeamRatings({ stat }: { stat: TeamStats }) {
+  const netTone = stat.netRating > 0 ? "positive" : stat.netRating < 0 ? "danger" : "default";
+  return (
+    <Card className="p-4">
+      <div className="mb-2 flex items-center justify-between">
+        <h3 className="text-sm font-semibold text-text">Team efficiency</h3>
+        <span className="text-[11px] text-faint">per 100 possessions · 2025-26</span>
+      </div>
+      <div className="grid grid-cols-3 gap-2 sm:grid-cols-6">
+        <Rating label="Off Rtg" value={stat.offRating.toFixed(1)} hint="pts scored" />
+        <Rating label="Def Rtg" value={stat.defRating.toFixed(1)} hint="pts allowed" />
+        <Rating
+          label="Net Rtg"
+          value={`${stat.netRating > 0 ? "+" : ""}${stat.netRating.toFixed(1)}`}
+          tone={netTone}
+        />
+        <Rating label="Pace" value={stat.pace.toFixed(1)} hint="poss/game" />
+        <Rating label="PPG" value={fmtAvg(stat.pointsFor)} />
+        <Rating label="Opp PPG" value={fmtAvg(stat.pointsAgainst)} />
+      </div>
+    </Card>
+  );
+}
 
 export function TeamsTab() {
   const teamsQuery = useTeams();
   const playersQuery = usePlayers();
+  const statsQuery = useTeamStats();
   const [picked, setPicked] = useState<string | null>(null);
 
   const teams = teamsQuery.data;
-  // Default the selector to Atlanta — a small nod to the target reader.
   const defaultId = useMemo(() => {
     if (!teams?.length) return null;
     return teams.find((t) => t.abbreviation === "ATL")?.id ?? teams[0].id;
@@ -23,6 +76,7 @@ export function TeamsTab() {
 
   const activeId = picked ?? defaultId;
   const activeTeam = teams?.find((t) => t.id === activeId) ?? null;
+  const activeStat = statsQuery.data?.find((s) => s.teamId === activeId) ?? null;
 
   const roster = useMemo(() => {
     if (!playersQuery.data || !activeId) return [];
@@ -37,7 +91,14 @@ export function TeamsTab() {
   );
 
   if (teamsQuery.isError || playersQuery.isError) {
-    return <ErrorState onRetry={() => { teamsQuery.refetch(); playersQuery.refetch(); }} />;
+    return (
+      <ErrorState
+        onRetry={() => {
+          teamsQuery.refetch();
+          playersQuery.refetch();
+        }}
+      />
+    );
   }
 
   return (
@@ -80,6 +141,8 @@ export function TeamsTab() {
           </div>
         </Card>
       ) : null}
+
+      {activeStat ? <TeamRatings stat={activeStat} /> : null}
 
       {playersQuery.isLoading ? (
         <SkeletonCards count={8} />
