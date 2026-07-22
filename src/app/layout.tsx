@@ -3,7 +3,7 @@ import "./globals.css";
 import { Providers } from "./providers";
 
 export const metadata: Metadata = {
-  title: "Hardwood · NBA Stats & Analytics",
+  title: "Hardwood Analytics · NBA Stats",
   description:
     "A live NBA stats dashboard — players, teams, league leaders, injuries, news, and the 2026 draft. Built with Next.js, TypeScript, Tailwind, and Radix UI.",
 };

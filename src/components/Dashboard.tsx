@@ -61,8 +61,8 @@ export function Dashboard() {
         <div className="mx-auto flex max-w-6xl items-center gap-3 px-4 py-5 sm:px-6">
           <BasketballMark className="h-10 w-10" />
           <div>
-            <h1 className="text-lg font-semibold tracking-tight text-text">Hardwood</h1>
-            <p className="text-xs text-muted">NBA Stats &amp; Analytics · 2025-26</p>
+            <h1 className="text-lg font-semibold tracking-tight text-text">Hardwood Analytics</h1>
+            <p className="text-xs text-muted">NBA Player &amp; Team Stats · 2025-26</p>
           </div>
         </div>
       </header>
