@@ -74,7 +74,7 @@ export function ExploreTab() {
   const [position, setPosition] = useState<PosKey>("all");
   const [selected, setSelected] = useState<Player | null>(null);
 
-  const { points, avgX, avgY } = useMemo(() => {
+  const { points, avgX, avgY, yDomain, xMax } = useMemo(() => {
     const pool = qualified(players ?? []);
     const all: Point[] = pool.map((p) => ({
       x: p.stats.points,
@@ -84,8 +84,20 @@ export function ExploreTab() {
     }));
     const ax = all.length ? all.reduce((s, p) => s + p.x, 0) / all.length : 0;
     const ay = all.length ? all.reduce((s, p) => s + p.y, 0) / all.length : 0;
+    // Explicit numeric domains computed from the full pool so the axes stay
+    // stable when filtering by position.
+    const ys = all.map((p) => p.y);
+    const yLo = ys.length ? Math.max(0, Math.floor(Math.min(...ys) - 2)) : 40;
+    const yHi = ys.length ? Math.ceil(Math.max(...ys) + 2) : 70;
+    const xHi = all.length ? Math.ceil(Math.max(...all.map((p) => p.x)) + 2) : 36;
     const filtered = position === "all" ? all : all.filter((p) => p.pos === position);
-    return { points: filtered, avgX: ax, avgY: ay };
+    return {
+      points: filtered,
+      avgX: ax,
+      avgY: ay,
+      yDomain: [yLo, yHi] as [number, number],
+      xMax: xHi,
+    };
   }, [players, position]);
 
   return (
@@ -118,6 +130,8 @@ export function ExploreTab() {
                   type="number"
                   dataKey="x"
                   name="Points"
+                  domain={[0, xMax]}
+                  tickFormatter={(v) => `${Math.round(Number(v))}`}
                   tick={{ fill: "var(--color-faint)", fontSize: 11 }}
                   axisLine={false}
                   tickLine={false}
@@ -133,12 +147,14 @@ export function ExploreTab() {
                   type="number"
                   dataKey="y"
                   name="TS%"
-                  domain={["dataMin - 2", "dataMax + 2"]}
+                  domain={yDomain}
+                  tickFormatter={(v) => `${Math.round(Number(v))}%`}
                   tick={{ fill: "var(--color-faint)", fontSize: 11 }}
                   axisLine={false}
                   tickLine={false}
+                  width={44}
                   label={{
-                    value: "True Shooting % →",
+                    value: "True Shooting %",
                     angle: -90,
                     position: "insideLeft",
                     fill: "var(--color-muted)",
