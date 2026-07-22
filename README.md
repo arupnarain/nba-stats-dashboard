@@ -2,9 +2,9 @@
 
 A live NBA statistics dashboard built with **React, Next.js, TypeScript, Tailwind CSS, and Radix UI**. It pulls real, current NBA data from public endpoints, normalizes it through a typed server-side layer, and presents it as a set of clean, reusable, performance-conscious React components.
 
-**Live demo:** <!-- LIVE_URL -->
+**Live demo:** https://nba-stats-dashboard-chi.vercel.app
 
-<!-- SCREENSHOT -->
+![Hardwood — NBA stats dashboard](public/screenshot.jpg)
 
 ---
 
